@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ckb" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>سندوق — مەسروفات و قەرزەکان</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F7F3EC;
+    --surface:#FFFFFF;
+    --ink:#20302E;
+    --ink-soft:#5B6B67;
+    --teal:#1B4B4B;
+    --teal-dark:#123535;
+    --gold:#C08A28;
+    --rust:#A6503A;
+    --sage:#5C7A5E;
+    --border:#E5DCCB;
+  }
+  *{font-family:'Vazirmatn',sans-serif;}
+  .font-head{font-family:'Noto Kufi Arabic',sans-serif;}
+  body{background:var(--bg); color:var(--ink);}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+
+  .stamp{
+    width:52px;height:52px;border-radius:9999px;
+    display:flex;align-items:center;justify-content:center;
+    border:2.5px solid currentColor;
+    position:relative;
+    font-family:'Noto Kufi Arabic',sans-serif;
+    font-weight:800;font-size:11px;
+    transform:rotate(-6deg);
+    letter-spacing:0.5px;
+  }
+  .stamp::before{
+    content:'';position:absolute;inset:4px;border:1px dashed currentColor;border-radius:9999px;opacity:0.5;
+  }
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px;}
+  .nav-item{transition:all .15s ease;}
+  .nav-item.active{background:var(--teal); color:#fff;}
+  .nav-item:not(.active):hover{background:#EFE8D8;}
+  .btn-primary{background:var(--teal); color:#fff;}
+  .btn-primary:hover{background:var(--teal-dark);}
+  .fade-in{animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+  input, select, textarea{background:#fff; border:1px solid var(--border); border-radius:10px;}
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .num{font-variant-numeric: tabular-nums;}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center px-4">
+  <div class="card w-full max-w-sm p-8 fade-in">
+    <div class="flex items-center gap-3 mb-1">
+      <div class="stamp text-[--teal]" style="color:var(--teal)">سندوق</div>
+      <div>
+        <h1 class="font-head text-xl font-bold" style="color:var(--teal)">سندوقی من</h1>
+        <p class="text-xs" style="color:var(--ink-soft)">مەسروفات و قەرزەکان</p>
+      </div>
+    </div>
+    <p class="text-sm mt-4 mb-5" style="color:var(--ink-soft)">بچۆرە ژوورەوە بۆ بەڕێوەبردنی حسابەکانت</p>
+
+    <div id="setupNotice" class="hidden text-xs mb-4 p-3 rounded-lg" style="background:#FBF3E3; color:var(--gold); border:1px solid var(--gold)">
+      پێویستە پێشتر لە Supabase Dashboard بەکارهێنەرێک دروست بکەیت (Authentication → Users → Add user).
+    </div>
+
+    <form id="loginForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">ئیمەیل</label>
+        <input type="email" id="loginEmail" required class="w-full mt-1 px-3 py-2 text-sm" placeholder="you@example.com">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">پاسوۆرد</label>
+        <input type="password" id="loginPassword" required class="w-full mt-1 px-3 py-2 text-sm" placeholder="••••••••">
+      </div>
+      <p id="loginError" class="text-xs hidden" style="color:var(--rust)"></p>
+      <button type="submit" class="btn-primary w-full py-2.5 rounded-lg text-sm font-semibold mt-2">چوونەژوورەوە</button>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== APP SHELL ==================== -->
+<div id="appShell" class="hidden min-h-screen md:flex">
+
+  <!-- Sidebar -->
+  <aside class="md:w-60 shrink-0 border-b md:border-b-0 md:border-s" style="border-color:var(--border); background:var(--surface);">
+    <div class="p-5 flex items-center gap-3 border-b" style="border-color:var(--border)">
+      <div class="stamp shrink-0" style="color:var(--teal); width:40px;height:40px;font-size:9px;">سندوق</div>
+      <div>
+        <h1 class="font-head text-base font-bold" style="color:var(--teal)">سندوقی من</h1>
+        <p class="text-[11px]" style="color:var(--ink-soft)">بەڕێوەبردنی دارایی</p>
+      </div>
+    </div>
+    <nav class="p-3 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible">
+      <button data-tab="dashboard" class="nav-item active flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start">
+        <span>📊</span><span>داشبۆرد</span>
+      </button>
+      <button data-tab="expenses" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start">
+        <span>💸</span><span>مەسروفات</span>
+      </button>
+      <button data-tab="loans" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start">
+        <span>🤝</span><span>قەرزەکان</span>
+      </button>
+      <button data-tab="people" class="nav-item flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium shrink-0 w-full text-start">
+        <span>👤</span><span>کەسان</span>
+      </button>
+    </nav>
+    <div class="p-3 space-y-2">
+      <button id="changePasswordBtn" class="w-full text-xs py-2 rounded-lg border" style="border-color:var(--border); color:var(--ink-soft)">گۆڕینی وشەی نهێنی</button>
+      <button id="logoutBtn" class="w-full text-xs py-2 rounded-lg border" style="border-color:var(--border); color:var(--ink-soft)">دەرچوون</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 p-4 md:p-8 max-w-5xl">
+
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab-panel fade-in">
+      <h2 class="font-head text-2xl font-bold mb-6">داشبۆرد</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div class="card p-5">
+          <p class="text-xs" style="color:var(--ink-soft)">کۆی مەسروفاتی ئەم مانگە</p>
+          <div id="statExpenses" class="mt-2 space-y-0.5"></div>
+        </div>
+        <div class="card p-5" style="border-color:var(--gold)">
+          <p class="text-xs" style="color:var(--ink-soft)">قەرزی داوم (ماوە بۆ وەرگرتنەوە)</p>
+          <div id="statGiven" class="mt-2 space-y-0.5"></div>
+        </div>
+        <div class="card p-5" style="border-color:var(--rust)">
+          <p class="text-xs" style="color:var(--ink-soft)">قەرزی وەرگیراوم (ماوە بۆ دانەوە)</p>
+          <div id="statReceived" class="mt-2 space-y-0.5"></div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="font-head font-semibold mb-3">دوایین چالاکییەکان</h3>
+        <div id="recentActivity" class="space-y-2 text-sm"></div>
+      </div>
+    </section>
+
+    <!-- EXPENSES -->
+    <section id="tab-expenses" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-head text-2xl font-bold">مەسروفات</h2>
+        <button id="addExpenseBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ خەرجی نوێ</button>
+      </div>
+      <div class="card divide-y" style="border-color:var(--border)" id="expensesList"></div>
+    </section>
+
+    <!-- LOANS -->
+    <section id="tab-loans" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-head text-2xl font-bold">قەرزەکان</h2>
+        <button id="addLoanBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ قەرزی نوێ</button>
+      </div>
+      <div class="flex gap-2 mb-5">
+        <button data-loantype="given" class="loan-filter px-3 py-1.5 rounded-full text-xs font-semibold" style="background:var(--teal); color:#fff">قەرزی دراو</button>
+        <button data-loantype="received" class="loan-filter px-3 py-1.5 rounded-full text-xs font-semibold border" style="border-color:var(--border); color:var(--ink-soft)">قەرزی وەرگیراو</button>
+      </div>
+      <div class="card divide-y" style="border-color:var(--border)" id="loansList"></div>
+    </section>
+
+    <!-- PEOPLE -->
+    <section id="tab-people" class="tab-panel hidden">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="font-head text-2xl font-bold">کەسان</h2>
+        <button id="addPersonBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ کەسی نوێ</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="peopleList"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ==================== MODAL ==================== -->
+<div id="modalBackdrop" class="hidden fixed inset-0 bg-black/40 z-40 flex items-center justify-center px-4">
+  <div id="modalBox" class="card w-full max-w-md p-6 z-50 fade-in max-h-[85vh] overflow-y-auto"></div>
+</div>
+
+<script>
+/* ======================================================
+   ڕێکخستنی Supabase — لێرە URL و ANON KEY ی پرۆژەکەی
+   خۆتی Supabase دابنێ (لە Project Settings → API)
+====================================================== */
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentLoanFilter = 'given';
+let peopleCache = [];
+
+/* ---------- Helpers ---------- */
+const fmt = n => new Intl.NumberFormat('en-US').format(Number(n || 0));
+const todayStr = () => new Date().toISOString().slice(0,10);
+const curSymbol = c => c === 'USD' ? '$' : 'د.ع';
+const fmtCur = (n, c) => c === 'USD' ? `$${fmt(n)}` : `${fmt(n)} د.ع`;
+
+function showModal(html){
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalBackdrop').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modalBackdrop').classList.add('hidden');
+}
+document.getElementById('modalBackdrop').addEventListener('click', e=>{
+  if(e.target.id === 'modalBackdrop') closeModal();
+});
+
+/* ---------- Auth ---------- */
+document.getElementById('loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.classList.add('hidden');
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){
+    errEl.textContent = "هەڵە: ئیمەیل یان پاسوۆرد هەڵەیە";
+    errEl.classList.remove('hidden');
+    return;
+  }
+  await enterApp();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+  location.reload();
+});
+
+document.getElementById('changePasswordBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">گۆڕینی وشەی نهێنی</h3>
+    <form id="passwordForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">وشەی نهێنی نوێ</label>
+        <input required type="password" minlength="6" id="newPassword" class="w-full mt-1 px-3 py-2 text-sm" placeholder="لانیکەم ٦ پیت">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">دووبارەکردنەوەی وشەی نهێنی</label>
+        <input required type="password" minlength="6" id="confirmPassword" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <p id="passwordMsg" class="text-xs hidden"></p>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">نوێکردنەوە</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('passwordForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    const msgEl = document.getElementById('passwordMsg');
+    const p1 = document.getElementById('newPassword').value;
+    const p2 = document.getElementById('confirmPassword').value;
+    if(p1 !== p2){
+      msgEl.textContent = 'وشە نهێنییەکان وەک یەک نین';
+      msgEl.style.color = 'var(--rust)';
+      msgEl.classList.remove('hidden');
+      return;
+    }
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if(error){
+      msgEl.textContent = 'هەڵە: ' + error.message;
+      msgEl.style.color = 'var(--rust)';
+      msgEl.classList.remove('hidden');
+      return;
+    }
+    msgEl.textContent = 'وشەی نهێنی بە سەرکەوتوویی نوێکرایەوە ✓';
+    msgEl.style.color = 'var(--sage)';
+    msgEl.classList.remove('hidden');
+    setTimeout(closeModal, 1500);
+  });
+});
+
+async function checkSession(){
+  const { data } = await sb.auth.getSession();
+  if(data.session){
+    await enterApp();
+  } else {
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('appShell').classList.add('hidden');
+  }
+}
+
+async function enterApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  document.getElementById('appShell').classList.add('md:flex');
+  await loadPeople();
+  await renderDashboard();
+  await renderExpenses();
+  await renderLoans();
+  await renderPeople();
+}
+
+/* ---------- Navigation ---------- */
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.add('hidden'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+/* ---------- People ---------- */
+async function loadPeople(){
+  const { data } = await sb.from('people').select('*').order('name');
+  peopleCache = data || [];
+}
+
+async function renderPeople(){
+  const wrap = document.getElementById('peopleList');
+  if(!peopleCache.length){
+    wrap.innerHTML = `<p class="text-sm col-span-2" style="color:var(--ink-soft)">هێشتا کەسیت زیاد نەکردووە.</p>`;
+    return;
+  }
+  const { data: loans } = await sb.from('loans').select('*, loan_payments(amount)');
+  wrap.innerHTML = peopleCache.map(p=>{
+    const personLoans = (loans||[]).filter(l=>l.person_id===p.id);
+    const netByCur = { IQD: 0, USD: 0 };
+    personLoans.forEach(l=>{
+      const paid = (l.loan_payments||[]).reduce((s,pay)=>s+Number(pay.amount),0);
+      const remaining = Number(l.amount) - paid;
+      const cur = l.currency || 'IQD';
+      netByCur[cur] += l.type === 'given' ? remaining : -remaining;
+    });
+    const lines = Object.entries(netByCur).filter(([,v])=>Math.abs(v) > 0.001).map(([cur, net])=>{
+      const color = net > 0 ? 'var(--gold)' : 'var(--rust)';
+      const label = net > 0 ? 'قەرزاری تۆیە' : 'قەرزی لێت هەیە';
+      return `<p class="num text-sm font-bold" style="color:${color}">${fmtCur(Math.abs(net), cur)} <span class="text-[11px] font-normal" style="color:var(--ink-soft)">${label}</span></p>`;
+    }).join('');
+    return `
+    <div class="card p-4 flex items-center justify-between gap-3">
+      <div>
+        <p class="font-semibold text-sm">${p.name}</p>
+        <p class="text-xs mt-0.5" style="color:var(--ink-soft)">${p.phone || 'ژمارە تۆمار نەکراوە'}</p>
+      </div>
+      <div class="text-end">
+        ${lines || `<p class="text-[11px]" style="color:var(--sage)">یەکسانە</p>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('addPersonBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">کەسی نوێ</h3>
+    <form id="personForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">ناو</label>
+        <input required id="pName" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">ژمارە تەلەفۆن (ئارەزوومەندانە)</label>
+        <input id="pPhone" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">پاشەکەوتکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('personForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    await sb.from('people').insert({ name: document.getElementById('pName').value, phone: document.getElementById('pPhone').value });
+    closeModal();
+    await loadPeople();
+    await renderPeople();
+    await renderLoans();
+  });
+});
+
+/* ---------- Expenses ---------- */
+async function renderExpenses(){
+  const { data } = await sb.from('expenses').select('*').order('expense_date', { ascending:false }).limit(100);
+  const wrap = document.getElementById('expensesList');
+  if(!data || !data.length){
+    wrap.innerHTML = `<p class="p-5 text-sm" style="color:var(--ink-soft)">هێشتا خەرجیت تۆمار نەکردووە.</p>`;
+    return;
+  }
+  wrap.innerHTML = data.map(x=>`
+    <div class="p-4 flex items-center justify-between">
+      <div>
+        <p class="text-sm font-medium">${x.category}${x.description ? ' — '+x.description : ''}</p>
+        <p class="text-[11px] mt-0.5" style="color:var(--ink-soft)">${x.expense_date}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <p class="num text-sm font-bold" style="color:var(--rust)">${fmtCur(x.amount, x.currency || 'IQD')}</p>
+        <button onclick="deleteExpense('${x.id}')" class="text-xs" style="color:var(--ink-soft)">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteExpense(id){
+  await sb.from('expenses').delete().eq('id', id);
+  await renderExpenses();
+  await renderDashboard();
+}
+
+document.getElementById('addExpenseBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">خەرجی نوێ</h3>
+    <form id="expenseForm" class="space-y-3">
+      <div class="grid grid-cols-3 gap-2">
+        <div class="col-span-2">
+          <label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی پارە</label>
+          <input required type="number" step="0.01" id="eAmount" class="w-full mt-1 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-medium" style="color:var(--ink-soft)">دراو</label>
+          <select id="eCurrency" class="w-full mt-1 px-3 py-2 text-sm">
+            <option value="IQD">د.ع</option>
+            <option value="USD">$</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">پۆل</label>
+        <input required id="eCategory" placeholder="خواردن، گواستنەوە، خانووبەرە..." class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">وردەکاری (ئارەزوومەندانە)</label>
+        <input id="eDesc" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">بەروار</label>
+        <input required type="date" id="eDate" value="${todayStr()}" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">پاشەکەوتکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('expenseForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    await sb.from('expenses').insert({
+      amount: document.getElementById('eAmount').value,
+      currency: document.getElementById('eCurrency').value,
+      category: document.getElementById('eCategory').value,
+      description: document.getElementById('eDesc').value,
+      expense_date: document.getElementById('eDate').value
+    });
+    closeModal();
+    await renderExpenses();
+    await renderDashboard();
+  });
+});
+
+/* ---------- Loans ---------- */
+document.querySelectorAll('.loan-filter').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    currentLoanFilter = btn.dataset.loantype;
+    document.querySelectorAll('.loan-filter').forEach(b=>{
+      b.style.background = 'transparent';
+      b.style.color = 'var(--ink-soft)';
+      b.style.borderColor = 'var(--border)';
+    });
+    btn.style.background = 'var(--teal)';
+    btn.style.color = '#fff';
+    renderLoans();
+  });
+});
+
+async function renderLoans(){
+  const { data } = await sb.from('loans').select('*, people(name), loan_payments(id, amount, payment_date)').eq('type', currentLoanFilter).order('loan_date', { ascending:false });
+  const wrap = document.getElementById('loansList');
+  if(!data || !data.length){
+    wrap.innerHTML = `<p class="p-5 text-sm" style="color:var(--ink-soft)">هیچ قەرزێک لەم جۆرە تۆمار نەکراوە.</p>`;
+    return;
+  }
+  wrap.innerHTML = data.map(l=>{
+    const paid = (l.loan_payments||[]).reduce((s,p)=>s+Number(p.amount),0);
+    const remaining = Number(l.amount) - paid;
+    const settled = remaining <= 0;
+    const cur = l.currency || 'IQD';
+    return `
+    <div class="p-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semibold">${l.people?.name || '—'}</p>
+          <p class="text-[11px] mt-0.5" style="color:var(--ink-soft)">${l.loan_date}${l.due_date ? ' → کاتی گەڕانەوە: '+l.due_date : ''}</p>
+          ${l.notes ? `<p class="text-[11px] mt-1" style="color:var(--ink-soft)">📝 ${l.notes}</p>` : ''}
+        </div>
+        <div class="text-end shrink-0 ms-3">
+          <p class="num text-sm font-bold" style="color:${settled ? 'var(--sage)' : (currentLoanFilter==='given' ? 'var(--gold)':'var(--rust)')}">${fmtCur(remaining, cur)}</p>
+          <p class="text-[11px]" style="color:var(--ink-soft)">${settled ? 'تەواو دراوەتەوە' : 'لە کۆی '+fmtCur(l.amount, cur)}</p>
+        </div>
+      </div>
+      ${!settled ? `<div class="flex gap-2 mt-3">
+        <button onclick="addPayment('${l.id}', ${remaining}, '${cur}')" class="text-xs px-3 py-1.5 rounded-full font-semibold" style="background:#EFE8D8; color:var(--teal)">+ تۆمارکردنی دانەوە</button>
+        <button onclick="deleteLoan('${l.id}')" class="text-xs px-3 py-1.5 rounded-full" style="color:var(--ink-soft)">سڕینەوە</button>
+      </div>` : `<div class="mt-3"><button onclick="deleteLoan('${l.id}')" class="text-xs px-3 py-1.5 rounded-full" style="color:var(--ink-soft)">سڕینەوە</button></div>`}
+    </div>`;
+  }).join('');
+}
+
+async function deleteLoan(id){
+  await sb.from('loans').delete().eq('id', id);
+  await renderLoans();
+  await renderPeople();
+  await renderDashboard();
+}
+
+function addPayment(loanId, remaining, currency){
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">تۆمارکردنی دانەوە</h3>
+    <p class="text-xs mb-3" style="color:var(--ink-soft)">بڕی ماوە: <span class="num font-semibold" style="color:var(--ink)">${fmtCur(remaining, currency)}</span></p>
+    <form id="paymentForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی دراوەتەوە</label>
+        <input required type="number" step="0.01" max="${remaining}" id="payAmount" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">بەروار</label>
+        <input required type="date" id="payDate" value="${todayStr()}" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">پاشەکەوتکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('paymentForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    await sb.from('loan_payments').insert({
+      loan_id: loanId,
+      amount: document.getElementById('payAmount').value,
+      payment_date: document.getElementById('payDate').value
+    });
+    closeModal();
+    await renderLoans();
+    await renderPeople();
+    await renderDashboard();
+  });
+}
+
+document.getElementById('addLoanBtn').addEventListener('click', ()=>{
+  if(!peopleCache.length){
+    showModal(`<p class="text-sm text-center py-6">سەرەتا پێویستە کەسێک زیاد بکەیت لە خشتەی «کەسان».</p>`);
+    return;
+  }
+  showModal(`
+    <h3 class="font-head text-lg font-bold mb-4">قەرزی نوێ</h3>
+    <form id="loanForm" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">جۆر</label>
+        <select id="lType" class="w-full mt-1 px-3 py-2 text-sm">
+          <option value="given">قەرزی دراو (من داومە)</option>
+          <option value="received">قەرزی وەرگیراو (لێم وەرگیراوە)</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">کەس</label>
+        <select required id="lPerson" class="w-full mt-1 px-3 py-2 text-sm">
+          ${peopleCache.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="col-span-2">
+          <label class="text-xs font-medium" style="color:var(--ink-soft)">بڕی پارە</label>
+          <input required type="number" step="0.01" id="lAmount" class="w-full mt-1 px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="text-xs font-medium" style="color:var(--ink-soft)">دراو</label>
+          <select id="lCurrency" class="w-full mt-1 px-3 py-2 text-sm">
+            <option value="IQD">د.ع</option>
+            <option value="USD">$</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">بەرواری قەرز</label>
+        <input required type="date" id="lDate" value="${todayStr()}" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">کاتی گەڕانەوە (ئارەزوومەندانە)</label>
+        <input type="date" id="lDue" class="w-full mt-1 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="text-xs font-medium" style="color:var(--ink-soft)">هۆکاری قەرز (تێبینی)</label>
+        <textarea id="lReason" rows="2" placeholder="بۆ نموونە: بۆ کڕینی ماشین، یارمەتی خێزانی، هتد..." class="w-full mt-1 px-3 py-2 text-sm"></textarea>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold">پاشەکەوتکردن</button>
+        <button type="button" onclick="closeModal()" class="flex-1 py-2 rounded-lg text-sm font-semibold border" style="border-color:var(--border)">پاشگەزبوونەوە</button>
+      </div>
+    </form>
+  `);
+  document.getElementById('loanForm').addEventListener('submit', async e=>{
+    e.preventDefault();
+    await sb.from('loans').insert({
+      type: document.getElementById('lType').value,
+      person_id: document.getElementById('lPerson').value,
+      currency: document.getElementById('lCurrency').value,
+      amount: document.getElementById('lAmount').value,
+      loan_date: document.getElementById('lDate').value,
+      due_date: document.getElementById('lDue').value || null,
+      notes: document.getElementById('lReason').value || null
+    });
+    closeModal();
+    await renderLoans();
+    await renderPeople();
+    await renderDashboard();
+  });
+});
+
+/* ---------- Dashboard ---------- */
+async function renderDashboard(){
+  const monthStart = todayStr().slice(0,7)+'-01';
+  const { data: exp } = await sb.from('expenses').select('amount, currency').gte('expense_date', monthStart);
+  const expByCur = { IQD: 0, USD: 0 };
+  (exp||[]).forEach(x=>{ expByCur[x.currency || 'IQD'] += Number(x.amount); });
+
+  const { data: loans } = await sb.from('loans').select('*, loan_payments(amount)');
+  const given = { IQD: 0, USD: 0 }, received = { IQD: 0, USD: 0 };
+  (loans||[]).forEach(l=>{
+    const paid = (l.loan_payments||[]).reduce((s,p)=>s+Number(p.amount),0);
+    const remaining = Number(l.amount) - paid;
+    if(remaining <= 0) return;
+    const cur = l.currency || 'IQD';
+    if(l.type === 'given') given[cur] += remaining; else received[cur] += remaining;
+  });
+  const renderStat = (obj, color) => {
+    const lines = Object.entries(obj).filter(([,v])=>v > 0.001).map(([cur, v])=>
+      `<p class="num font-head text-xl font-bold" style="color:${color}">${fmtCur(v, cur)}</p>`
+    ).join('');
+    return lines || `<p class="num font-head text-xl font-bold" style="color:${color}">۰</p>`;
+  };
+  document.getElementById('statExpenses').innerHTML = renderStat(expByCur, 'var(--ink)');
+  document.getElementById('statGiven').innerHTML = renderStat(given, 'var(--gold)');
+  document.getElementById('statReceived').innerHTML = renderStat(received, 'var(--rust)');
+
+  // Recent activity
+  const { data: recentExp } = await sb.from('expenses').select('*').order('created_at', { ascending:false }).limit(3);
+  const { data: recentLoans } = await sb.from('loans').select('*, people(name)').order('created_at', { ascending:false }).limit(3);
+  const items = [
+    ...(recentExp||[]).map(x=>({ label: `خەرجی: ${x.category}`, amount: -x.amount, cur: x.currency || 'IQD', date: x.expense_date })),
+    ...(recentLoans||[]).map(l=>({ label: `${l.type==='given'?'قەرزی دراو بۆ':'قەرزی وەرگیراو لە'} ${l.people?.name||''}`, amount: l.type==='given'?l.amount:-l.amount, cur: l.currency || 'IQD', date: l.loan_date }))
+  ].sort((a,b)=> new Date(b.date) - new Date(a.date)).slice(0,5);
+
+  const wrap = document.getElementById('recentActivity');
+  wrap.innerHTML = items.length ? items.map(i=>`
+    <div class="flex items-center justify-between py-1.5">
+      <span>${i.label}</span>
+      <span class="num font-semibold" style="color:${i.amount<0?'var(--rust)':'var(--gold)'}">${i.amount<0?'-':'+'}${fmtCur(Math.abs(i.amount), i.cur)}</span>
+    </div>
+  `).join('') : `<p style="color:var(--ink-soft)">هیچ چالاکییەک نییە.</p>`;
+}
+
+/* ---------- Init ---------- */
+checkSession();
+</script>
+</body>
+</html>
