@@ -151,13 +151,20 @@
         <button id="addExpenseBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ خەرجی نوێ</button>
       </div>
 
-      <div class="card p-3 flex items-center justify-between mb-4">
+      <div class="card p-3 flex items-center justify-between mb-2">
         <button id="prevMonthBtn" class="px-3 py-1.5 rounded-lg text-sm font-semibold" style="background:#EFE8D8; color:var(--teal)">◀ پێشوو</button>
-        <div class="text-center">
-          <p id="monthLabel" class="font-head font-bold text-sm"></p>
-          <p id="monthTotal" class="num text-xs mt-0.5" style="color:var(--ink-soft)"></p>
-        </div>
+        <p id="monthLabel" class="font-head font-bold text-sm"></p>
         <button id="nextMonthBtn" class="px-3 py-1.5 rounded-lg text-sm font-semibold" style="background:#EFE8D8; color:var(--teal)">داهاتوو ▶</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="card p-4 text-center">
+          <p class="text-[11px]" style="color:var(--ink-soft)">کۆی گشتی — دینار</p>
+          <p id="monthTotalIQD" class="num font-head text-lg font-bold mt-1" style="color:var(--rust)">۰ د.ع</p>
+        </div>
+        <div class="card p-4 text-center">
+          <p class="text-[11px]" style="color:var(--ink-soft)">کۆی گشتی — دۆلار</p>
+          <p id="monthTotalUSD" class="num font-head text-lg font-bold mt-1" style="color:var(--rust)">$۰</p>
+        </div>
       </div>
 
       <div class="card divide-y" style="border-color:var(--border)" id="expensesList"></div>
@@ -198,8 +205,8 @@
    ڕێکخستنی Supabase — لێرە URL و ANON KEY ی پرۆژەکەی
    خۆتی Supabase دابنێ (لە Project Settings → API)
 ====================================================== */
-const SUPABASE_URL = "https://cwjgaysuriwkdzhtwdcd.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_eEa6RM0qEWC2BNvJMgB6lA__Z7I4QCr";
+const SUPABASE_URL = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentLoanFilter = 'given';
@@ -415,8 +422,8 @@ async function renderExpenses(){
 
   const totalsByCur = { IQD: 0, USD: 0 };
   (data||[]).forEach(x=>{ totalsByCur[x.currency || 'IQD'] += Number(x.amount); });
-  const totalParts = Object.entries(totalsByCur).filter(([,v])=>v > 0.001).map(([cur,v])=>fmtCur(v,cur));
-  document.getElementById('monthTotal').textContent = 'کۆی مانگ: ' + (totalParts.length ? totalParts.join('  +  ') : '۰');
+  document.getElementById('monthTotalIQD').textContent = fmtCur(totalsByCur.IQD, 'IQD');
+  document.getElementById('monthTotalUSD').textContent = fmtCur(totalsByCur.USD, 'USD');
 
   if(!data || !data.length){
     wrap.innerHTML = `<p class="p-5 text-sm" style="color:var(--ink-soft)">هیچ خەرجییەک بۆ ئەم مانگە تۆمار نەکراوە.</p>`;
