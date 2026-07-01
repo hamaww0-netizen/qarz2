@@ -146,10 +146,20 @@
 
     <!-- EXPENSES -->
     <section id="tab-expenses" class="tab-panel hidden">
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center justify-between mb-4">
         <h2 class="font-head text-2xl font-bold">مەسروفات</h2>
         <button id="addExpenseBtn" class="btn-primary px-4 py-2 rounded-lg text-sm font-semibold">+ خەرجی نوێ</button>
       </div>
+
+      <div class="card p-3 flex items-center justify-between mb-4">
+        <button id="prevMonthBtn" class="px-3 py-1.5 rounded-lg text-sm font-semibold" style="background:#EFE8D8; color:var(--teal)">◀ پێشوو</button>
+        <div class="text-center">
+          <p id="monthLabel" class="font-head font-bold text-sm"></p>
+          <p id="monthTotal" class="num text-xs mt-0.5" style="color:var(--ink-soft)"></p>
+        </div>
+        <button id="nextMonthBtn" class="px-3 py-1.5 rounded-lg text-sm font-semibold" style="background:#EFE8D8; color:var(--teal)">داهاتوو ▶</button>
+      </div>
+
       <div class="card divide-y" style="border-color:var(--border)" id="expensesList"></div>
     </section>
 
@@ -377,11 +387,39 @@ document.getElementById('addPersonBtn').addEventListener('click', ()=>{
 });
 
 /* ---------- Expenses ---------- */
+const kurdishMonths = ['یانواری','فێبرواری','مارس','ئەپریل','مایس','حوزەیران','تەمووز','ئاب','ئەیلوول','تشرینی یەکەم','تشرینی دووەم','کانونی یەکەم'];
+let currentExpenseMonth = new Date();
+currentExpenseMonth.setDate(1);
+
+function monthRange(d){
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth()+1, 1);
+  const f = x => x.toISOString().slice(0,10);
+  return { start: f(start), end: f(end) };
+}
+
+document.getElementById('prevMonthBtn').addEventListener('click', ()=>{
+  currentExpenseMonth.setMonth(currentExpenseMonth.getMonth()-1);
+  renderExpenses();
+});
+document.getElementById('nextMonthBtn').addEventListener('click', ()=>{
+  currentExpenseMonth.setMonth(currentExpenseMonth.getMonth()+1);
+  renderExpenses();
+});
+
 async function renderExpenses(){
-  const { data } = await sb.from('expenses').select('*').order('expense_date', { ascending:false }).limit(100);
+  document.getElementById('monthLabel').textContent = `${kurdishMonths[currentExpenseMonth.getMonth()]} ${currentExpenseMonth.getFullYear()}`;
+  const { start, end } = monthRange(currentExpenseMonth);
+  const { data } = await sb.from('expenses').select('*').gte('expense_date', start).lt('expense_date', end).order('expense_date', { ascending:false });
   const wrap = document.getElementById('expensesList');
+
+  const totalsByCur = { IQD: 0, USD: 0 };
+  (data||[]).forEach(x=>{ totalsByCur[x.currency || 'IQD'] += Number(x.amount); });
+  const totalParts = Object.entries(totalsByCur).filter(([,v])=>v > 0.001).map(([cur,v])=>fmtCur(v,cur));
+  document.getElementById('monthTotal').textContent = 'کۆی مانگ: ' + (totalParts.length ? totalParts.join('  +  ') : '۰');
+
   if(!data || !data.length){
-    wrap.innerHTML = `<p class="p-5 text-sm" style="color:var(--ink-soft)">هێشتا خەرجیت تۆمار نەکردووە.</p>`;
+    wrap.innerHTML = `<p class="p-5 text-sm" style="color:var(--ink-soft)">هیچ خەرجییەک بۆ ئەم مانگە تۆمار نەکراوە.</p>`;
     return;
   }
   wrap.innerHTML = data.map(x=>`
@@ -448,6 +486,8 @@ document.getElementById('addExpenseBtn').addEventListener('click', ()=>{
       description: document.getElementById('eDesc').value,
       expense_date: document.getElementById('eDate').value
     });
+    currentExpenseMonth = new Date(document.getElementById('eDate').value);
+    currentExpenseMonth.setDate(1);
     closeModal();
     await renderExpenses();
     await renderDashboard();
